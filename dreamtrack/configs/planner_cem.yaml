@@ -1,0 +1,7 @@
+planner:
+  horizon: 20
+  candidates: 512
+  elites: 64
+  iterations: 4
+  action_low: [-1.0, 0.0, 0.0]
+  action_high: [1.0, 1.0, 1.0]
