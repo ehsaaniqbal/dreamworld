@@ -623,6 +623,28 @@ def propose_next_experiment_remote(
 @app.function(
     image=image,
     volumes={str(VOLUME_ROOT): volume},
+    timeout=10 * 60,
+)
+def evaluate_completed_run_remote(
+    *,
+    run_id: str,
+) -> dict[str, Any]:
+    """Evaluate a completed run and write its research note."""
+    from dreamworld.research.loop import evaluate_completed_run
+
+    volume.reload()
+    result = evaluate_completed_run(
+        research_root=VOLUME_ROOT,
+        runs_root=RUNS_ROOT,
+        run_id=run_id,
+    )
+    volume.commit()
+    return result
+
+
+@app.function(
+    image=image,
+    volumes={str(VOLUME_ROOT): volume},
     timeout=14 * 60 * 60,
 )
 def run_autoresearch_once_remote(
@@ -641,6 +663,7 @@ def run_autoresearch_once_remote(
     )
     volume.commit()
     run_result = run_pipeline_remote.remote(spec_name=proposal["spec_path"])
+    volume.reload()
     decision = evaluate_completed_run(
         research_root=VOLUME_ROOT,
         runs_root=RUNS_ROOT,
@@ -688,6 +711,7 @@ def run_autoresearch_loop_remote(
         )
         volume.commit()
         run_result = run_pipeline_remote.remote(spec_name=proposal["spec_path"])
+        volume.reload()
         decision = evaluate_completed_run(
             research_root=VOLUME_ROOT,
             runs_root=RUNS_ROOT,
