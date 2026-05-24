@@ -11,9 +11,9 @@ import gymnasium as gym
 import matplotlib.pyplot as plt
 import numpy as np
 
-from dreamtrack.data.collect_rollouts import heuristic_policy, random_policy
-from dreamtrack.plan.mpc_agent import DreamMPCAgent
-from dreamtrack.viz.video import write_video
+from dreamworld.data.collect_rollouts import heuristic_policy, random_policy
+from dreamworld.plan.mpc_agent import DreamMPCAgent
+from dreamworld.viz.video import write_video
 
 PolicyFn = Callable[[gym.Env, np.ndarray, np.random.Generator], np.ndarray]
 

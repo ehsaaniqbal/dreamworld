@@ -28,7 +28,7 @@ class RolloutDataset:
 
 
 def load_rollout_dataset(path: str | Path) -> RolloutDataset:
-    """Load a rollout dataset saved by dreamtrack.data.collect_rollouts."""
+    """Load a rollout dataset saved by dreamworld.data.collect_rollouts."""
     with np.load(Path(path)) as data:
         dataset = RolloutDataset(
             obs=data["obs"],

@@ -1,4 +1,4 @@
-"""Build a static HTML demo page from dreamtrack run artifacts."""
+"""Build a static HTML demo page from dreamworld run artifacts."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def build_dashboard(
     dream_run: str | Path | None = None,
     planner_run: str | Path | None = None,
     failure_run: str | Path | None = None,
-    title: str = "dreamtrack CarRacing World Model Demo",
+    title: str = "dreamworld CarRacing World Model Demo",
 ) -> Path:
     """Create a self-contained static demo directory with copied artifacts."""
     output_dir = Path(out)
@@ -402,7 +402,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dream-run", type=Path, default=None)
     parser.add_argument("--planner-run", type=Path, default=None)
     parser.add_argument("--failure-run", type=Path, default=None)
-    parser.add_argument("--title", type=str, default="dreamtrack CarRacing World Model Demo")
+    parser.add_argument("--title", type=str, default="dreamworld CarRacing World Model Demo")
     return parser.parse_args()
 
 

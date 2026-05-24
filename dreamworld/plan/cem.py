@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from dreamtrack.plan.random_shooting import (
+from dreamworld.plan.random_shooting import (
     ACTION_HIGH,
     ACTION_LOW,
     ACTION_PRIOR_MEAN,

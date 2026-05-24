@@ -11,10 +11,10 @@ import gymnasium as gym
 import numpy as np
 from tqdm import tqdm
 
-from dreamtrack.config import load_config
-from dreamtrack.data.dataset import load_rollout_dataset, validate_rollout_dataset
-from dreamtrack.data.preprocess import FramePreprocessor
-from dreamtrack.viz.video import write_video
+from dreamworld.config import load_config
+from dreamworld.data.dataset import load_rollout_dataset, validate_rollout_dataset
+from dreamworld.data.preprocess import FramePreprocessor
+from dreamworld.viz.video import write_video
 
 
 def random_policy(env: gym.Env, _observation: np.ndarray, rng: np.random.Generator) -> np.ndarray:
@@ -235,7 +235,7 @@ def load_rollout_dataset_from_arrays(
     episode_lengths: np.ndarray,
 ):
     """Create a RolloutDataset without a temporary file."""
-    from dreamtrack.data.dataset import RolloutDataset
+    from dreamworld.data.dataset import RolloutDataset
 
     return RolloutDataset(
         obs=obs,
@@ -250,7 +250,7 @@ def load_rollout_dataset_from_arrays(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=Path("dreamtrack/configs/collect.yaml"))
+    parser.add_argument("--config", type=Path, default=Path("dreamworld/configs/collect.yaml"))
     parser.add_argument("--episodes", type=int, default=None)
     parser.add_argument("--policy", choices=sorted(POLICIES), default=None)
     parser.add_argument("--image-size", type=int, default=None)

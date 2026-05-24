@@ -1,1 +1,1 @@
-"""Modal infrastructure entrypoints for dreamtrack."""
+"""Modal infrastructure entrypoints for dreamworld."""

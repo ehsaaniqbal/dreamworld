@@ -10,11 +10,11 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from dreamtrack.data.dataset import load_rollout_dataset
-from dreamtrack.models.autoencoder import AutoencoderConfig, ConvAutoencoder
-from dreamtrack.models.vqvae import VQVAE, VQVAEConfig, codebook_metrics
-from dreamtrack.train.train_autoencoder import FrameDataset, choose_device
-from dreamtrack.viz.grids import make_reconstruction_grid, save_image
+from dreamworld.data.dataset import load_rollout_dataset
+from dreamworld.models.autoencoder import AutoencoderConfig, ConvAutoencoder
+from dreamworld.models.vqvae import VQVAE, VQVAEConfig, codebook_metrics
+from dreamworld.train.train_autoencoder import FrameDataset, choose_device
+from dreamworld.viz.grids import make_reconstruction_grid, save_image
 
 
 def _to_nhwc(batch: torch.Tensor) -> np.ndarray:

@@ -14,11 +14,11 @@ from torch import nn
 from torch.utils.data import DataLoader, Dataset, random_split
 from tqdm import tqdm
 
-from dreamtrack.config import load_config
-from dreamtrack.data.dataset import load_rollout_dataset
-from dreamtrack.models.autoencoder import AutoencoderConfig, ConvAutoencoder
-from dreamtrack.viz.grids import make_reconstruction_grid, save_image
-from dreamtrack.viz.plots import save_loss_curve
+from dreamworld.config import load_config
+from dreamworld.data.dataset import load_rollout_dataset
+from dreamworld.models.autoencoder import AutoencoderConfig, ConvAutoencoder
+from dreamworld.viz.grids import make_reconstruction_grid, save_image
+from dreamworld.viz.plots import save_loss_curve
 
 
 class FrameDataset(Dataset[torch.Tensor]):
@@ -226,7 +226,7 @@ def evaluate_loss(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, default=Path("dreamtrack/configs/tokenizer_ae.yaml"))
+    parser.add_argument("--config", type=Path, default=Path("dreamworld/configs/tokenizer_ae.yaml"))
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--epochs", type=int, default=None)

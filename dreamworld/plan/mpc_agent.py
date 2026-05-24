@@ -8,12 +8,12 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from dreamtrack.data.preprocess import FramePreprocessor
-from dreamtrack.eval.eval_dynamics import load_dynamics_checkpoint
-from dreamtrack.plan.cem import cem_plan
-from dreamtrack.plan.random_shooting import random_shooting_plan
-from dreamtrack.train.train_autoencoder import choose_device
-from dreamtrack.train.train_dynamics import load_vqvae_checkpoint
+from dreamworld.data.preprocess import FramePreprocessor
+from dreamworld.eval.eval_dynamics import load_dynamics_checkpoint
+from dreamworld.plan.cem import cem_plan
+from dreamworld.plan.random_shooting import random_shooting_plan
+from dreamworld.train.train_autoencoder import choose_device
+from dreamworld.train.train_dynamics import load_vqvae_checkpoint
 
 
 class DreamMPCAgent:

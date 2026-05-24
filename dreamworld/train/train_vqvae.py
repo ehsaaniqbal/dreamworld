@@ -13,18 +13,18 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-from dreamtrack.config import load_config
-from dreamtrack.data.dataset import load_rollout_dataset
-from dreamtrack.models.vqvae import VQVAE, VQVAEConfig, codebook_metrics
-from dreamtrack.train.train_autoencoder import (
+from dreamworld.config import load_config
+from dreamworld.data.dataset import load_rollout_dataset
+from dreamworld.models.vqvae import VQVAE, VQVAEConfig, codebook_metrics
+from dreamworld.train.train_autoencoder import (
     FrameDataset,
     _nested_get,
     _seed_everything,
     _to_nhwc_uint8,
     choose_device,
 )
-from dreamtrack.viz.grids import make_reconstruction_grid, make_token_grid, save_image
-from dreamtrack.viz.plots import save_loss_curve
+from dreamworld.viz.grids import make_reconstruction_grid, make_token_grid, save_image
+from dreamworld.viz.plots import save_loss_curve
 
 
 def train_vqvae(
@@ -247,7 +247,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("dreamtrack/configs/tokenizer_vqvae.yaml"),
+        default=Path("dreamworld/configs/tokenizer_vqvae.yaml"),
     )
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)

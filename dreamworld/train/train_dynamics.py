@@ -15,15 +15,15 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset, random_split
 from tqdm import tqdm
 
-from dreamtrack.config import load_config
-from dreamtrack.data.dataset import RolloutDataset, load_rollout_dataset
-from dreamtrack.models.dynamics_transformer import (
+from dreamworld.config import load_config
+from dreamworld.data.dataset import RolloutDataset, load_rollout_dataset
+from dreamworld.models.dynamics_transformer import (
     DynamicsTransformerConfig,
     TokenDynamicsTransformer,
 )
-from dreamtrack.models.vqvae import VQVAE, VQVAEConfig
-from dreamtrack.train.train_autoencoder import _nested_get, choose_device
-from dreamtrack.viz.plots import save_loss_curve
+from dreamworld.models.vqvae import VQVAE, VQVAEConfig
+from dreamworld.train.train_autoencoder import _nested_get, choose_device
+from dreamworld.viz.plots import save_loss_curve
 
 DynamicsBatch = tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
 
@@ -440,7 +440,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config",
         type=Path,
-        default=Path("dreamtrack/configs/dynamics_transformer.yaml"),
+        default=Path("dreamworld/configs/dynamics_transformer.yaml"),
     )
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--tokenizer", type=Path, required=True)

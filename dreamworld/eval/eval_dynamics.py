@@ -9,13 +9,13 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
 
-from dreamtrack.data.dataset import load_rollout_dataset
-from dreamtrack.models.dynamics_transformer import (
+from dreamworld.data.dataset import load_rollout_dataset
+from dreamworld.models.dynamics_transformer import (
     DynamicsTransformerConfig,
     TokenDynamicsTransformer,
 )
-from dreamtrack.train.train_autoencoder import choose_device
-from dreamtrack.train.train_dynamics import (
+from dreamworld.train.train_autoencoder import choose_device
+from dreamworld.train.train_dynamics import (
     TokenSequenceDataset,
     encode_rollout_tokens,
     evaluate_dynamics,

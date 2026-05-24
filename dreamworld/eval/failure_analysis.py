@@ -11,16 +11,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from dreamtrack.data.dataset import load_rollout_dataset
-from dreamtrack.eval.compare_real_vs_dream import (
+from dreamworld.data.dataset import load_rollout_dataset
+from dreamworld.eval.compare_real_vs_dream import (
     _comparison_frames,
     _decode_tokens,
     _open_loop_tokens,
 )
-from dreamtrack.eval.eval_dynamics import load_dynamics_checkpoint
-from dreamtrack.train.train_autoencoder import choose_device
-from dreamtrack.train.train_dynamics import encode_rollout_tokens, load_vqvae_checkpoint
-from dreamtrack.viz.video import write_video
+from dreamworld.eval.eval_dynamics import load_dynamics_checkpoint
+from dreamworld.train.train_autoencoder import choose_device
+from dreamworld.train.train_dynamics import encode_rollout_tokens, load_vqvae_checkpoint
+from dreamworld.viz.video import write_video
 
 
 @torch.no_grad()

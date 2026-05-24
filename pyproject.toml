@@ -1,5 +1,5 @@
 [project]
-name = "dreamtrack"
+name = "dreamworld"
 version = "0.1.0"
 description = "Modern world-model experiments for Gymnasium CarRacing."
 readme = "README.md"

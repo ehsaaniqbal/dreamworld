@@ -448,7 +448,7 @@ wheels = [
 ]
 
 [[package]]
-name = "dreamtrack"
+name = "dreamworld"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

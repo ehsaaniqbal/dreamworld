@@ -1,4 +1,4 @@
-"""Minimal web dashboard for dreamtrack experiment runs."""
+"""Minimal web dashboard for dreamworld experiment runs."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
 
-from dreamtrack.experiments.artifacts import (
+from dreamworld.experiments.artifacts import (
     discover_runs,
     flatten_metrics,
     metric_series,
@@ -28,7 +28,7 @@ STATUS_LABELS = {
 
 def create_app(runs_root: str | Path) -> FastAPI:
     root = Path(runs_root)
-    app = FastAPI(title="dreamtrack research")
+    app = FastAPI(title="dreamworld research")
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
@@ -81,13 +81,13 @@ def page(title: str, body: str) -> str:
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="refresh" content="30">
-  <title>{escape(title)} &middot; dreamtrack</title>
+  <title>{escape(title)} &middot; dreamworld</title>
   <style>{styles()}</style>
 </head>
 <body>
   <header>
     <div>
-      <a class="brand" href="/">dreamtrack</a>
+      <a class="brand" href="/">dreamworld</a>
       <span class="muted">world-model research runs</span>
     </div>
     <span class="refresh">auto-refresh 30s</span>

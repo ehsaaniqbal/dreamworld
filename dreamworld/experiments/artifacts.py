@@ -19,7 +19,7 @@ def now_iso() -> str:
 
 
 def default_runs_root() -> Path:
-    return Path(os.environ.get("DREAMTRACK_RUNS_ROOT", "runs/research"))
+    return Path(os.environ.get("DREAMWORLD_RUNS_ROOT", "runs/research"))
 
 
 def safe_slug(value: str) -> str:
@@ -183,9 +183,14 @@ def _mtime_iso(path: Path) -> str | None:
 
 
 def score_run(metrics: dict[str, Any]) -> float | None:
-    planner = _nested(metrics, ("results", "dream_cem", "mean_return"))
-    if isinstance(planner, int | float):
-        return float(planner)
+    for keys in (
+        ("results", "dream_cem", "mean_return"),
+        ("planner", "results", "dream_cem", "mean_return"),
+        ("planner", "results", "dream_random", "mean_return"),
+    ):
+        planner = _nested(metrics, keys)
+        if isinstance(planner, int | float):
+            return float(planner)
     for key in (
         "mean_return",
         "token_accuracy",
