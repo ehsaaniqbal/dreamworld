@@ -1,0 +1,11 @@
+env:
+  id: CarRacing-v3
+  render_mode: rgb_array
+
+data:
+  image_size: 64
+  episodes: 10
+  policy: random
+  out: data/car_racing_debug
+
+seed: 0
