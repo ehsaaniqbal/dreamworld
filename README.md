@@ -14,11 +14,11 @@ The goal is to build an agent-friendly research loop: propose an experiment, run
 
 World models have a little bit of everything:
 
-1. Pixels need compression.
-2. Actions need dynamics.
-3. Rewards are sparse and easy to exploit.
-4. Planning exposes model errors quickly.
-5. Bad predictions are visible as videos, not just numbers.
+1. Pixels need compression
+2. Actions need dynamics
+3. Rewards are sparse and easy to exploit
+4. Planning exposes model errors quickly
+5. Bad predictions are visible as visuals, not just numbers
 
 CarRacing is small enough to iterate on, but still annoying enough to be useful.
 
