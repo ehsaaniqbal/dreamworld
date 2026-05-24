@@ -1,0 +1,16 @@
+model:
+  context_length: 32
+  d_model: 256
+  n_heads: 4
+  n_layers: 4
+  dropout: 0.1
+
+train:
+  batch_size: 64
+  learning_rate: 0.0003
+  epochs: 20
+  seed: 0
+
+loss:
+  reward_weight: 1.0
+  done_weight: 0.2
