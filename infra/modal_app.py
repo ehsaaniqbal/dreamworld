@@ -482,10 +482,14 @@ def run_pipeline_remote(
             out=dynamics_path,
             epochs=int(dynamics_cfg.get("epochs", 8)),
             batch_size=int(dynamics_cfg.get("batch_size", 64)),
+            learning_rate=_optional_float(dynamics_cfg.get("learning_rate")),
             context_length=int(dynamics_cfg.get("context_length", 16)),
             d_model=int(dynamics_cfg.get("d_model", 256)),
             n_heads=int(dynamics_cfg.get("n_heads", 4)),
             n_layers=int(dynamics_cfg.get("n_layers", 4)),
+            dropout=_optional_float(dynamics_cfg.get("dropout")),
+            reward_loss_weight=_optional_float(dynamics_cfg.get("reward_loss_weight")),
+            done_loss_weight=_optional_float(dynamics_cfg.get("done_loss_weight")),
             max_frames=dynamics_cfg.get("max_frames"),
             device_name="cuda",
         )
@@ -577,11 +581,132 @@ def _resolve_spec_path(spec_name: str) -> Path:
         Path("experiments/specs") / spec_name,
         Path("experiments/specs") / f"{spec_name}.yaml",
         Path("experiments/specs") / f"{spec_name}.yml",
+        VOLUME_ROOT / "research" / "queue" / "pending" / spec_name,
+        VOLUME_ROOT / "research" / "queue" / "pending" / f"{spec_name}.yaml",
+        VOLUME_ROOT / "research" / "queue" / "pending" / f"{spec_name}.yml",
     ]
     for candidate in candidates:
         if candidate.exists():
             return candidate
     raise FileNotFoundError(f"Experiment spec not found: {spec_name}")
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    return float(value)
+
+
+@app.function(
+    image=image,
+    volumes={str(VOLUME_ROOT): volume},
+    timeout=10 * 60,
+)
+def propose_next_experiment_remote(
+    *,
+    base_spec_name: str = "baseline_debug",
+    name: str | None = None,
+) -> dict[str, Any]:
+    """Write the next config-only experiment spec into the Modal Volume."""
+    from dreamworld.research.loop import propose_next_spec
+
+    result = propose_next_spec(
+        research_root=VOLUME_ROOT,
+        runs_root=RUNS_ROOT,
+        base_spec_path=_resolve_spec_path(base_spec_name),
+        name=name,
+    )
+    volume.commit()
+    return result
+
+
+@app.function(
+    image=image,
+    volumes={str(VOLUME_ROOT): volume},
+    timeout=14 * 60 * 60,
+)
+def run_autoresearch_once_remote(
+    *,
+    base_spec_name: str = "baseline_debug",
+    name: str | None = None,
+) -> dict[str, Any]:
+    """Plan, run, and evaluate one config-only autoresearch iteration."""
+    from dreamworld.research.loop import evaluate_completed_run, propose_next_spec
+
+    proposal = propose_next_spec(
+        research_root=VOLUME_ROOT,
+        runs_root=RUNS_ROOT,
+        base_spec_path=_resolve_spec_path(base_spec_name),
+        name=name,
+    )
+    volume.commit()
+    run_result = run_pipeline_remote.remote(spec_name=proposal["spec_path"])
+    decision = evaluate_completed_run(
+        research_root=VOLUME_ROOT,
+        runs_root=RUNS_ROOT,
+        run_id=str(run_result["run_id"]),
+    )
+    volume.commit()
+    return {"proposal": proposal, "run": run_result, "decision": decision}
+
+
+@app.function(
+    image=image,
+    volumes={str(VOLUME_ROOT): volume},
+    timeout=24 * 60 * 60,
+)
+def run_autoresearch_loop_remote(
+    *,
+    base_spec_name: str = "baseline_debug",
+    max_iterations: int = 4,
+) -> dict[str, Any]:
+    """Run config-only autoresearch until the stop rule or iteration budget fires."""
+    from dreamworld.experiments.artifacts import load_json, write_json
+    from dreamworld.research.loop import (
+        evaluate_completed_run,
+        propose_next_spec,
+        research_paths,
+        should_stop,
+    )
+
+    paths = research_paths(VOLUME_ROOT, runs_root=RUNS_ROOT)
+    state = load_json(paths.state_path, default={})
+    state["status"] = "running"
+    state["max_iterations"] = max_iterations
+    write_json(paths.state_path, state)
+    volume.commit()
+
+    completed: list[dict[str, Any]] = []
+    for _index in range(max_iterations):
+        state = load_json(paths.state_path, default={})
+        if should_stop(state):
+            break
+        proposal = propose_next_spec(
+            research_root=VOLUME_ROOT,
+            runs_root=RUNS_ROOT,
+            base_spec_path=_resolve_spec_path(base_spec_name),
+        )
+        volume.commit()
+        run_result = run_pipeline_remote.remote(spec_name=proposal["spec_path"])
+        decision = evaluate_completed_run(
+            research_root=VOLUME_ROOT,
+            runs_root=RUNS_ROOT,
+            run_id=str(run_result["run_id"]),
+        )
+        volume.commit()
+        completed.append(
+            {
+                "proposal": proposal["spec_path"],
+                "run_id": run_result["run_id"],
+                "decision": decision["decision"]["decision"],
+            }
+        )
+
+    state = load_json(paths.state_path, default={})
+    state["status"] = "stopped" if should_stop(state) else "ready"
+    write_json(paths.state_path, state)
+    volume.commit()
+    return {"completed": completed, "state": state}
 
 
 @app.function(

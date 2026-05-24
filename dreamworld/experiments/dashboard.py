@@ -98,8 +98,10 @@ def page(title: str, body: str) -> str:
 
 
 def render_index(runs: list[dict[str, Any]], root: Path) -> str:
+    research = render_research_state(root)
     if not runs:
         return f"""
+{research}
 <section class="hero">
   <h1>No runs yet</h1>
   <p>Point the dashboard at a run directory or launch a Modal job. Current root:
@@ -115,6 +117,7 @@ def render_index(runs: list[dict[str, Any]], root: Path) -> str:
     best_label = format_score(best.get("score")) if best else "n/a"
     best_name = escape(str(best.get("name") or best.get("run_id"))) if best else "No scored run"
     return f"""
+{research}
 <section class="summary-grid">
   {stat_card("Total Runs", str(len(runs)), "tracked in this root")}
   {stat_card("Running", str(running), "active experiments")}
@@ -163,6 +166,7 @@ def render_run_detail(run: dict[str, Any], root: Path) -> str:
     series = metric_series(metrics)
     media = run.get("media") if isinstance(run.get("media"), list) else []
     config = run.get("config") if isinstance(run.get("config"), dict) else {}
+    note = read_run_note(root, run_id)
 
     scalar_items = "\n".join(
         metric_item(key, value)
@@ -205,6 +209,7 @@ def render_run_detail(run: dict[str, Any], root: Path) -> str:
   <div class="section-title"><h2>Artifacts</h2><span>{len(media)} media files</span></div>
   <div class="media-grid">{gallery or empty_state("No images or videos found.")}</div>
 </section>
+{render_note(note)}
 <section class="two-col">
   <div>
     <div class="section-title"><h2>Config</h2></div>
@@ -225,6 +230,71 @@ def stat_card(label: str, value: str, hint: str) -> str:
   <strong>{value}</strong>
   <span>{escape(hint)}</span>
 </div>"""
+
+
+def render_research_state(root: Path) -> str:
+    state_path = root.parent / "research" / "state.json"
+    goal_path = root.parent / "research" / "goal.md"
+    if not state_path.exists():
+        return ""
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return ""
+    last = state.get("last_decision") if isinstance(state.get("last_decision"), dict) else {}
+    proposal = state.get("last_proposal") if isinstance(state.get("last_proposal"), dict) else {}
+    goal = goal_path.read_text(encoding="utf-8", errors="replace") if goal_path.exists() else ""
+    goal_line = next((line.strip("# ").strip() for line in goal.splitlines() if line.strip()), "")
+    status_card = stat_card(
+        "Status",
+        escape(str(state.get("status") or "n/a")),
+        escape(goal_line or "goal not set"),
+    )
+    iterations_card = stat_card(
+        "Iterations",
+        escape(str(state.get("iterations") or 0)),
+        f"max {escape(str(state.get('max_iterations') or 'n/a'))}",
+    )
+    best_card = stat_card(
+        "Best",
+        format_score(state.get("best_score")),
+        escape(str(state.get("best_run_id") or "none")),
+    )
+    decision_card = stat_card(
+        "Last Decision",
+        escape(str(last.get("decision") or "n/a")),
+        escape(str(last.get("reason") or proposal.get("name") or "none")),
+    )
+    return f"""
+<section>
+  <div class="section-title">
+    <h1>Autoresearch</h1>
+    <span>{escape(str(state_path))}</span>
+  </div>
+  <div class="summary-grid">
+    {status_card}
+    {iterations_card}
+    {best_card}
+    {decision_card}
+  </div>
+</section>"""
+
+
+def read_run_note(root: Path, run_id: str) -> str | None:
+    note_path = safe_child(root, run_id) / "note.md"
+    if not note_path.exists():
+        return None
+    return note_path.read_text(encoding="utf-8", errors="replace")
+
+
+def render_note(note: str | None) -> str:
+    if not note:
+        return ""
+    return f"""
+<section>
+  <div class="section-title"><h2>Research Note</h2></div>
+  <pre>{escape(note)}</pre>
+</section>"""
 
 
 def status_badge(status: str) -> str:

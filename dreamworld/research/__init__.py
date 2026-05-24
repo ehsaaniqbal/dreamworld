@@ -1,0 +1,2 @@
+"""Config-only autoresearch helpers."""
+
