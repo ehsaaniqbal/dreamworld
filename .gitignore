@@ -1,0 +1,12 @@
+/.venv/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+
+.DS_Store
+
+/data/
+/runs/
+/outputs/
+dreamtrack/experiments/runs/*
+!dreamtrack/experiments/runs/.gitkeep
