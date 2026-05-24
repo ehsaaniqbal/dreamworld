@@ -425,6 +425,7 @@ def run_pipeline_remote(
     from dreamworld.train.train_dynamics import train_dynamics
     from dreamworld.train.train_vqvae import train_vqvae
 
+    volume.reload()
     spec_path = _resolve_spec_path(spec_name)
     spec = yaml.safe_load(spec_path.read_text(encoding="utf-8")) or {}
     name = str(spec.get("name") or spec_path.stem.replace("_", "-"))
