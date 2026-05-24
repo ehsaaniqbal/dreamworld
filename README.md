@@ -12,6 +12,41 @@ learned model for planning.
 uv sync
 ```
 
+## Research Dashboard and Modal Jobs
+
+The project includes a file-backed experiment dashboard. It can inspect local
+`runs/` artifacts today and the same app is served from Modal against the
+shared `dreamtrack-runs` Volume.
+
+Local dashboard:
+
+```bash
+uv run python -m dreamtrack.experiments.dashboard \
+  --runs-root runs \
+  --port 8787
+```
+
+Then open `http://127.0.0.1:8787`.
+
+Modal entrypoints:
+
+```bash
+modal run infra/modal_app.py::collect_rollouts_remote
+
+modal run infra/modal_app.py::train_vqvae_remote \
+  --data-path /dreamtrack/datasets/<dataset-run>/rollouts.npz
+
+modal run infra/modal_app.py::train_dynamics_remote \
+  --data-path /dreamtrack/datasets/<dataset-run>/rollouts.npz \
+  --tokenizer-path /dreamtrack/runs/<vqvae-run>/vqvae/checkpoints/best_codebook.pt
+
+modal serve infra/modal_app.py
+```
+
+Each Modal job writes a `run.json`, `metrics.json`, `logs.txt`, plots, videos,
+and checkpoints under `/dreamtrack/runs/<run-id>/`. The dashboard is read-only:
+jobs own training state; the webpage only renders the files they write.
+
 ## Quick Environment Check
 
 ```bash
