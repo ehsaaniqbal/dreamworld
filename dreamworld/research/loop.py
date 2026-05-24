@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -29,10 +30,13 @@ class ResearchPaths:
     research_root: Path
     queue_root: Path
     pending_root: Path
+    running_root: Path
     done_root: Path
+    failed_root: Path
     notes_root: Path
     state_path: Path
     goal_path: Path
+    active_call_path: Path
 
 
 def research_paths(root: str | Path, runs_root: str | Path | None = None) -> ResearchPaths:
@@ -45,10 +49,13 @@ def research_paths(root: str | Path, runs_root: str | Path | None = None) -> Res
         research_root=research_root,
         queue_root=queue_root,
         pending_root=queue_root / "pending",
+        running_root=queue_root / "running",
         done_root=queue_root / "done",
+        failed_root=queue_root / "failed",
         notes_root=research_root / "notes",
         state_path=research_root / STATE_FILE,
         goal_path=research_root / GOAL_FILE,
+        active_call_path=research_root / "active_call.json",
     )
 
 
@@ -56,7 +63,9 @@ def ensure_research_dirs(paths: ResearchPaths) -> None:
     for path in (
         paths.research_root,
         paths.pending_root,
+        paths.running_root,
         paths.done_root,
+        paths.failed_root,
         paths.notes_root,
     ):
         path.mkdir(parents=True, exist_ok=True)
@@ -87,13 +96,16 @@ Do not edit Python model code in this loop.
 def default_state() -> dict[str, Any]:
     return {
         "status": "ready",
+        "requested_status": "running",
         "created_at": now_iso(),
         "updated_at": now_iso(),
         "iterations": 0,
         "max_iterations": 8,
         "target_improvement": 0.25,
+        "min_confirm_episodes": 3,
         "best_run_id": None,
         "best_score": None,
+        "candidate_best": None,
         "last_proposal": None,
         "last_decision": None,
     }
@@ -189,6 +201,47 @@ def propose_next_spec(
     }
 
 
+def mark_spec_running(research_root: str | Path, spec_path: str | Path) -> str:
+    paths = research_paths(research_root)
+    ensure_research_dirs(paths)
+    source = Path(spec_path)
+    if not source.exists():
+        raise FileNotFoundError(f"Spec not found: {spec_path}")
+    target = paths.running_root / source.name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(source), target)
+    return str(target)
+
+
+def finalize_spec(
+    *,
+    research_root: str | Path,
+    spec_name: str,
+    decision: str,
+) -> str | None:
+    paths = research_paths(research_root)
+    ensure_research_dirs(paths)
+    source = find_queue_spec(paths, spec_name)
+    if source is None:
+        return None
+    final_root = paths.failed_root if decision in {"crash", "inconclusive"} else paths.done_root
+    target = final_root / source.name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(source), target)
+    return str(target)
+
+
+def find_queue_spec(paths: ResearchPaths, spec_name: str) -> Path | None:
+    slug = safe_slug(spec_name)
+    candidates = [
+        paths.running_root / f"{slug}.yaml",
+        paths.pending_root / f"{slug}.yaml",
+        paths.done_root / f"{slug}.yaml",
+        paths.failed_root / f"{slug}.yaml",
+    ]
+    return next((path for path in candidates if path.exists()), None)
+
+
 def mutate_spec(
     base_spec: dict[str, Any],
     *,
@@ -266,10 +319,27 @@ def evaluate_completed_run(
 
     score = run.get("score")
     old_best = state.get("best_score")
-    decision = decide_run(score, old_best, run.get("status"))
+    planner_episodes = planner_episode_count(run)
+    min_confirm_episodes = int(state.get("min_confirm_episodes") or 3)
+    decision = decide_run(
+        score,
+        old_best,
+        run.get("status"),
+        planner_episodes=planner_episodes,
+        min_confirm_episodes=min_confirm_episodes,
+    )
     if decision == "keep":
         state["best_score"] = float(score)
         state["best_run_id"] = run_id
+        state["candidate_best"] = None
+    elif decision == "candidate_best":
+        state["candidate_best"] = {
+            "run_id": run_id,
+            "score": float(score),
+            "previous_best": old_best,
+            "planner_episodes": planner_episodes,
+            "min_confirm_episodes": min_confirm_episodes,
+        }
     state["iterations"] = int(state.get("iterations") or 0) + 1
     state["status"] = "ready"
     state["updated_at"] = now_iso()
@@ -278,8 +348,21 @@ def evaluate_completed_run(
         "score": score,
         "previous_best": old_best,
         "decision": decision,
-        "reason": decision_reason(decision, score, old_best, run),
+        "reason": decision_reason(
+            decision,
+            score,
+            old_best,
+            run,
+            planner_episodes=planner_episodes,
+            min_confirm_episodes=min_confirm_episodes,
+        ),
     }
+    spec_target = finalize_spec(
+        research_root=paths.root,
+        spec_name=str(run.get("name") or run_id),
+        decision=decision,
+    )
+    state["last_decision"]["spec_path"] = spec_target
     write_json(paths.state_path, state)
 
     note_path = Path(run["path"]) / "note.md"
@@ -287,7 +370,14 @@ def evaluate_completed_run(
     return {"decision": state["last_decision"], "note_path": str(note_path), "state": state}
 
 
-def decide_run(score: Any, previous_best: Any, status: Any) -> str:
+def decide_run(
+    score: Any,
+    previous_best: Any,
+    status: Any,
+    *,
+    planner_episodes: int | None = None,
+    min_confirm_episodes: int = 3,
+) -> str:
     if status != "succeeded":
         return "crash"
     if not isinstance(score, int | float):
@@ -295,11 +385,16 @@ def decide_run(score: Any, previous_best: Any, status: Any) -> str:
     if not isinstance(previous_best, int | float):
         return "keep"
     if float(score) > float(previous_best):
+        if planner_episodes is not None and planner_episodes < min_confirm_episodes:
+            return "candidate_best"
         return "keep"
     return "discard"
 
 
 def should_stop(state: dict[str, Any]) -> bool:
+    requested = state.get("requested_status")
+    if requested in {"paused", "stopped"}:
+        return True
     if int(state.get("iterations") or 0) >= int(state.get("max_iterations") or 8):
         return True
     best = state.get("best_score")
@@ -308,6 +403,14 @@ def should_stop(state: dict[str, Any]) -> bool:
     if isinstance(best, int | float) and isinstance(baseline, int | float):
         return float(best) >= float(baseline) * (1.0 + target)
     return False
+
+
+def should_pause(state: dict[str, Any]) -> bool:
+    return state.get("requested_status") == "paused"
+
+
+def should_stop_requested(state: dict[str, Any]) -> bool:
+    return state.get("requested_status") == "stopped"
 
 
 def _load_state(paths: ResearchPaths) -> dict[str, Any]:
@@ -366,7 +469,26 @@ Reason: {decision["reason"]}
 """
 
 
-def decision_reason(decision: str, score: Any, old_best: Any, run: dict[str, Any]) -> str:
+def planner_episode_count(run: dict[str, Any]) -> int | None:
+    config = run.get("config")
+    if not isinstance(config, dict):
+        return None
+    planner = config.get("planner")
+    if not isinstance(planner, dict):
+        return None
+    episodes = planner.get("episodes")
+    return int(episodes) if isinstance(episodes, int | float) else None
+
+
+def decision_reason(
+    decision: str,
+    score: Any,
+    old_best: Any,
+    run: dict[str, Any],
+    *,
+    planner_episodes: int | None,
+    min_confirm_episodes: int,
+) -> str:
     if decision == "crash":
         return f"run ended with status {run.get('status')}"
     if decision == "inconclusive":
@@ -375,6 +497,11 @@ def decision_reason(decision: str, score: Any, old_best: Any, run: dict[str, Any
         return "first comparable run"
     if decision == "keep":
         return f"score improved from {old_best} to {score}"
+    if decision == "candidate_best":
+        return (
+            f"score improved from {old_best} to {score}, but only "
+            f"{planner_episodes} planner episodes ran; needs {min_confirm_episodes}"
+        )
     return f"score {score} did not beat current best {old_best}"
 
 

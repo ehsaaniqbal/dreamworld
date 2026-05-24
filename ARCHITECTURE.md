@@ -53,9 +53,12 @@ The durable source of truth is the `dreamworld-runs` Modal Volume:
   /research
     goal.md
     state.json
+    active_call.json
     /queue
       pending/*.yaml
-      done/*.yaml        # reserved for completed spec archival
+      running/*.yaml
+      done/*.yaml
+      failed/*.yaml
     /notes
       <proposal>.md
 ```
@@ -73,11 +76,14 @@ run the full Modal pipeline
 score the completed run
 write a note
 keep or discard the result
+move the spec to done or failed
 update state
 stop on budget or goal
 ```
 
 The loop is config-only. It mutates experiment specs, not Python model code.
+
+Improved one-episode scores are treated as `candidate_best` until confirmed with enough planner episodes.
 
 ## Model Stack
 

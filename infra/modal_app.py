@@ -646,6 +646,48 @@ def evaluate_completed_run_remote(
 @app.function(
     image=image,
     volumes={str(VOLUME_ROOT): volume},
+    timeout=5 * 60,
+)
+def record_active_call_remote(call_info: dict[str, Any]) -> dict[str, Any]:
+    """Record a deployed Modal function call for agent resume/cancel workflows."""
+    from dreamworld.experiments.artifacts import now_iso, write_json
+    from dreamworld.research.loop import research_paths
+
+    paths = research_paths(VOLUME_ROOT, runs_root=RUNS_ROOT)
+    record = {**call_info, "recorded_at": now_iso(), "status": "active"}
+    write_json(paths.active_call_path, record)
+    volume.commit()
+    return record
+
+
+@app.function(
+    image=image,
+    volumes={str(VOLUME_ROOT): volume},
+    timeout=5 * 60,
+)
+def update_active_call_remote(
+    *,
+    call_id: str,
+    status: str,
+) -> dict[str, Any]:
+    """Update active call status after result collection or cancellation."""
+    from dreamworld.experiments.artifacts import load_json, now_iso, write_json
+    from dreamworld.research.loop import research_paths
+
+    paths = research_paths(VOLUME_ROOT, runs_root=RUNS_ROOT)
+    record = load_json(paths.active_call_path, default={})
+    if record.get("call_id") != call_id:
+        record = {"call_id": call_id}
+    record["status"] = status
+    record["updated_at"] = now_iso()
+    write_json(paths.active_call_path, record)
+    volume.commit()
+    return record
+
+
+@app.function(
+    image=image,
+    volumes={str(VOLUME_ROOT): volume},
     timeout=14 * 60 * 60,
 )
 def run_autoresearch_once_remote(
@@ -654,7 +696,20 @@ def run_autoresearch_once_remote(
     name: str | None = None,
 ) -> dict[str, Any]:
     """Plan, run, and evaluate one config-only autoresearch iteration."""
-    from dreamworld.research.loop import evaluate_completed_run, propose_next_spec
+    from dreamworld.experiments.artifacts import load_json
+    from dreamworld.research.loop import (
+        evaluate_completed_run,
+        mark_spec_running,
+        propose_next_spec,
+        research_paths,
+        should_pause,
+        should_stop_requested,
+    )
+
+    paths = research_paths(VOLUME_ROOT, runs_root=RUNS_ROOT)
+    state = load_json(paths.state_path, default={})
+    if should_pause(state) or should_stop_requested(state):
+        return {"status": "skipped", "state": state}
 
     proposal = propose_next_spec(
         research_root=VOLUME_ROOT,
@@ -663,7 +718,9 @@ def run_autoresearch_once_remote(
         name=name,
     )
     volume.commit()
-    run_result = run_pipeline_remote.remote(spec_name=proposal["spec_path"])
+    running_spec_path = mark_spec_running(VOLUME_ROOT, proposal["spec_path"])
+    volume.commit()
+    run_result = run_pipeline_remote.remote(spec_name=running_spec_path)
     volume.reload()
     decision = evaluate_completed_run(
         research_root=VOLUME_ROOT,
@@ -688,14 +745,18 @@ def run_autoresearch_loop_remote(
     from dreamworld.experiments.artifacts import load_json, write_json
     from dreamworld.research.loop import (
         evaluate_completed_run,
+        mark_spec_running,
         propose_next_spec,
         research_paths,
+        should_pause,
         should_stop,
+        should_stop_requested,
     )
 
     paths = research_paths(VOLUME_ROOT, runs_root=RUNS_ROOT)
     state = load_json(paths.state_path, default={})
     state["status"] = "running"
+    state["requested_status"] = state.get("requested_status") or "running"
     state["max_iterations"] = max_iterations
     write_json(paths.state_path, state)
     volume.commit()
@@ -703,7 +764,7 @@ def run_autoresearch_loop_remote(
     completed: list[dict[str, Any]] = []
     for _index in range(max_iterations):
         state = load_json(paths.state_path, default={})
-        if should_stop(state):
+        if should_pause(state) or should_stop_requested(state) or should_stop(state):
             break
         proposal = propose_next_spec(
             research_root=VOLUME_ROOT,
@@ -711,7 +772,9 @@ def run_autoresearch_loop_remote(
             base_spec_path=_resolve_spec_path(base_spec_name),
         )
         volume.commit()
-        run_result = run_pipeline_remote.remote(spec_name=proposal["spec_path"])
+        running_spec_path = mark_spec_running(VOLUME_ROOT, proposal["spec_path"])
+        volume.commit()
+        run_result = run_pipeline_remote.remote(spec_name=running_spec_path)
         volume.reload()
         decision = evaluate_completed_run(
             research_root=VOLUME_ROOT,
@@ -728,7 +791,12 @@ def run_autoresearch_loop_remote(
         )
 
     state = load_json(paths.state_path, default={})
-    state["status"] = "stopped" if should_stop(state) else "ready"
+    if should_pause(state):
+        state["status"] = "paused"
+    elif should_stop_requested(state) or should_stop(state):
+        state["status"] = "stopped"
+    else:
+        state["status"] = "ready"
     write_json(paths.state_path, state)
     volume.commit()
     return {"completed": completed, "state": state}

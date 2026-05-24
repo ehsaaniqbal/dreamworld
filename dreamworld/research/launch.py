@@ -14,31 +14,61 @@ APP_NAME = "dreamworld"
 def spawn_loop(*, base_spec_name: str, max_iterations: int) -> dict[str, Any]:
     function = modal.Function.from_name(APP_NAME, "run_autoresearch_loop_remote")
     call = function.spawn(base_spec_name=base_spec_name, max_iterations=max_iterations)
-    return call_info(call, "run_autoresearch_loop_remote")
+    info = call_info(
+        call,
+        "run_autoresearch_loop_remote",
+        {"base_spec_name": base_spec_name, "max_iterations": max_iterations},
+    )
+    record_active_call(info)
+    return info
 
 
 def spawn_once(*, base_spec_name: str, name: str | None) -> dict[str, Any]:
     function = modal.Function.from_name(APP_NAME, "run_autoresearch_once_remote")
     call = function.spawn(base_spec_name=base_spec_name, name=name)
-    return call_info(call, "run_autoresearch_once_remote")
+    info = call_info(
+        call,
+        "run_autoresearch_once_remote",
+        {"base_spec_name": base_spec_name, "name": name},
+    )
+    record_active_call(info)
+    return info
 
 
 def get_result(call_id: str) -> Any:
-    return modal.FunctionCall.from_id(call_id).get()
+    result = modal.FunctionCall.from_id(call_id).get()
+    update_active_call(call_id, "completed")
+    return result
 
 
 def cancel_call(call_id: str) -> dict[str, str]:
     modal.FunctionCall.from_id(call_id).cancel()
+    update_active_call(call_id, "cancelled")
     return {"call_id": call_id, "status": "cancelled"}
 
 
-def call_info(call: modal.FunctionCall, function_name: str) -> dict[str, str]:
+def record_active_call(info: dict[str, Any]) -> None:
+    recorder = modal.Function.from_name(APP_NAME, "record_active_call_remote")
+    recorder.remote(info)
+
+
+def update_active_call(call_id: str, status: str) -> None:
+    updater = modal.Function.from_name(APP_NAME, "update_active_call_remote")
+    updater.remote(call_id=call_id, status=status)
+
+
+def call_info(
+    call: modal.FunctionCall,
+    function_name: str,
+    parameters: dict[str, Any],
+) -> dict[str, Any]:
     dashboard_url = call.get_dashboard_url()
     return {
         "app": APP_NAME,
         "function": function_name,
         "call_id": call.object_id,
         "dashboard_url": dashboard_url,
+        "parameters": parameters,
     }
 
 
