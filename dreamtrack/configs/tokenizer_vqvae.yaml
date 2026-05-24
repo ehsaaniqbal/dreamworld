@@ -1,0 +1,13 @@
+data:
+  image_size: 64
+
+model:
+  embedding_dim: 64
+  num_embeddings: 512
+  commitment_cost: 0.25
+
+train:
+  batch_size: 128
+  learning_rate: 0.0003
+  epochs: 20
+  seed: 0
